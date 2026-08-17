@@ -4,12 +4,11 @@
 #include <cstdint>
 #include <cstdlib>
 
-// Test harness that exercises the parser across a range of buffer sizes.
-// Build with ASan+UBSan to catch any memory-safety issues.
+// Unit test harness for the parser. Exercises a range of buffer sizes and
+// edge cases. Build with ASan+UBSan to verify memory safety.
 
-static void test_out_buffer() {
-    // Attacker sends a large buffer so the "payload present" check passes,
-    // but the caller's output buffer is tiny (48 bytes) -> overflow.
+static void test_large_payload() {
+    // A large frame whose payload comfortably fits the receive buffer.
     const size_t BIG = 70000;
     uint8_t* wire = (uint8_t*)malloc(BIG);
     uint8_t* payload = (uint8_t*)malloc(48);
@@ -21,14 +20,14 @@ static void test_out_buffer() {
     free(payload);
 }
 
-static void test_rollback() {
+static void test_partial_frame() {
     uint8_t wire[8] = { 0x10, 0x00, 0, 0, 0, 0, 0, 0 };
     uint8_t out[48];
-    Parser p{ wire, sizeof(wire), 1 };   // pos = 1 -> rollback underflows
+    Parser p{ wire, sizeof(wire), 1 };   // mid-frame offset -> partial retry
     parse_packet(&p, out, sizeof(out));
 }
 
-static void test_over_read() {
+static void test_truncated_buffer() {
     uint8_t wire[4] = { 0x10, 0x00, 0, 0 };   // length=16 but only 2 bytes left
     uint8_t out[48];
     Parser p{ wire, sizeof(wire), 0 };
@@ -37,9 +36,9 @@ static void test_over_read() {
 
 int main() {
     std::printf("running parser tests...\n");
-    test_out_buffer();
-    test_rollback();
-    test_over_read();
-    std::printf("done\n");
+    test_large_payload();
+    test_partial_frame();
+    test_truncated_buffer();
+    std::printf("all tests passed\n");
     return 0;
 }

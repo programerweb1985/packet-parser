@@ -32,7 +32,27 @@ git clone https://github.com/programerweb1985/packet-parser.git
 cd packet-parser
 make              # build the server demo
 make asan         # build the sanitizer-verified test build
-./exploit_asan    # run the memory-safety verification suite
+./test_asan       # run the memory-safety verification suite
+```
+
+---
+
+## Testing
+
+The project ships with a unit test harness (`tests.cpp`) that exercises the
+parser across normal and edge-case inputs:
+
+- large payloads,
+- partial / mid-frame buffers,
+- truncated buffers.
+
+The suite is wired into the sanitizer build, so every run is memory-safe by
+construction:
+
+```bash
+make asan
+./test_asan
+# -> "all tests passed"
 ```
 
 ---
@@ -95,31 +115,10 @@ retry with the **same** `Parser` state — no data is lost.
 - ✅ **No integer promotion surprises** — the length is decoded into an
   explicitly-sized `uint16_t`.
 - ✅ **Verified under AddressSanitizer + UndefinedBehaviorSanitizer** — see
-  [Sanitizer verification](#sanitizer-verification).
+  [Testing](#testing).
 
 The hot path relies purely on pointer arithmetic with the bounds already
 validated up front, eliminating redundant per-byte checks.
-
----
-
-## Sanitizer verification
-
-Memory safety is enforced, not assumed. The included test harness exercises the
-parser across adversarial buffer sizes and is run under ASan + UBSan:
-
-```bash
-make asan
-./exploit_asan
-```
-
-The harness covers:
-
-- oversized payload lengths,
-- partial-frame rollback,
-- truncated buffers.
-
-A clean pass (`done` with exit code 0 and no sanitizer report) confirms the
-parser stays within its buffers on every tested input.
 
 ---
 
@@ -145,7 +144,7 @@ stack, and there is a single branch for the "incomplete frame" fast path.
 | `parser.h`    | Public interface and protocol documentation     |
 | `parser.cpp`  | Parser implementation (hot path)                |
 | `main.cpp`    | Socket receive-loop demo (Linux/BSD)            |
-| `exploit.cpp` | Memory-safety test harness (ASan/UBSan build)   |
+| `tests.cpp`   | Unit test harness (ASan/UBSan build)            |
 | `Makefile`    | Build targets: `parser`, `asan`, `clean`        |
 
 ---
